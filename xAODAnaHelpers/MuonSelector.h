@@ -104,6 +104,8 @@ public:
   std::string    m_diMuTrigChains = "";
   /// @brief Recommended threshold for muon triggers: see https://svnweb.cern.ch/trac/atlasoff/browser/Trigger/TrigAnalysis/TriggerMatchingTool/trunk/src/TestMatchingToolAlg.cxx
   double         m_minDeltaR = 0.1;
+  /// @brief No effect on data. m_truthMatch=true selects muons that have a truthLink to a true muon, m_truthMatch=fake selects muons that do not have a truthLink to a true muon. 
+  std::string    m_truthMatch = "";
 
 private:
 
@@ -135,6 +137,7 @@ private:
   int   m_mu_cutflow_d0_cut;		    //!
   int   m_mu_cutflow_d0sig_cut;  	    //!
   int   m_mu_cutflow_iso_cut;		    //!
+  int   m_mu_cutflow_truthMatch_cut;		//!
   int   m_mu_cutflow_cosmic_cut;		    //!
 
   std::vector<std::string> m_IsoKeys;       //!
