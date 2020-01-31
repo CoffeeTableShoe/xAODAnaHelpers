@@ -154,8 +154,11 @@ EL::StatusCode MuonSelector :: initialize ()
     m_mu_cutflow_z0sintheta_cut       = m_mu_cutflowHist_1->GetXaxis()->FindBin("z0sintheta_cut");
     m_mu_cutflow_d0_cut               = m_mu_cutflowHist_1->GetXaxis()->FindBin("d0_cut");
     m_mu_cutflow_d0sig_cut            = m_mu_cutflowHist_1->GetXaxis()->FindBin("d0sig_cut");
+    m_mu_cutflow_precision_cut        = m_mu_cutflowHist_1->GetXaxis()->FindBin("precision_cut");
     m_mu_cutflow_iso_cut              = m_mu_cutflowHist_1->GetXaxis()->FindBin("iso_cut");
     m_mu_cutflow_truthMatch_cut       = m_mu_cutflowHist_1->GetXaxis()->FindBin("truthMatch_cut");
+    m_mu_cutflow_truthType_cut        = m_mu_cutflowHist_1->GetXaxis()->FindBin("truthType_cut");
+    m_mu_cutflow_truthOrigin_cut      = m_mu_cutflowHist_1->GetXaxis()->FindBin("truthOrigin_cut");
     if( m_removeCosmicMuon )
       m_mu_cutflow_cosmic_cut              = m_mu_cutflowHist_1->GetXaxis()->FindBin("cosmic_cut");
 
@@ -171,8 +174,11 @@ EL::StatusCode MuonSelector :: initialize ()
       m_mu_cutflow_z0sintheta_cut	 = m_mu_cutflowHist_2->GetXaxis()->FindBin("z0sintheta_cut");
       m_mu_cutflow_d0_cut		 = m_mu_cutflowHist_2->GetXaxis()->FindBin("d0_cut");
       m_mu_cutflow_d0sig_cut		 = m_mu_cutflowHist_2->GetXaxis()->FindBin("d0sig_cut");
+      m_mu_cutflow_precision_cut        = m_mu_cutflowHist_2->GetXaxis()->FindBin("precision_cut");
       m_mu_cutflow_iso_cut		 = m_mu_cutflowHist_2->GetXaxis()->FindBin("iso_cut");
       m_mu_cutflow_truthMatch_cut = m_mu_cutflowHist_2->GetXaxis()->FindBin("truthMatch_cut");
+      m_mu_cutflow_truthType_cut        = m_mu_cutflowHist_2->GetXaxis()->FindBin("truthType_cut");
+      m_mu_cutflow_truthOrigin_cut      = m_mu_cutflowHist_2->GetXaxis()->FindBin("truthOrigin_cut");
       if( m_removeCosmicMuon )
         m_mu_cutflow_cosmic_cut		 = m_mu_cutflowHist_2->GetXaxis()->FindBin("cosmic_cut");
     }
@@ -226,6 +232,16 @@ EL::StatusCode MuonSelector :: initialize ()
     while ( std::getline(ss, token, ',') ) {
       m_IsoKeys.push_back(token);
     }
+  }
+  if(!m_truthType.empty()){
+    std::string token;
+    std::istringstream ss(m_truthType);
+    while (std::getline(ss, token, ',')) m_truthTypes.push_back(std::stoi(token));
+  }
+  if(!m_truthOrigin.empty()){
+    std::string token;
+    std::istringstream ss(m_truthOrigin);
+    while (std::getline(ss, token, ',')) m_truthOrigins.push_back(std::stoi(token));
   }
 
   if ( m_inContainerName.empty() ){
@@ -849,6 +865,10 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
   ANA_CHECK( HelperFunctions::retrieve(eventInfo, m_eventInfoContainerName, m_event, m_store, msg()) );
 
   double d0_significance = xAOD::TrackingHelpers::d0significance( tp, eventInfo->beamPosSigmaX(), eventInfo->beamPosSigmaY(), eventInfo->beamPosSigmaXY() );
+  double sigma_d0 = std::sqrt( tp->definingParametersCovMatrixVec()[0] + xAOD::TrackingHelpers::d0UncertaintyBeamSpot2(tp->phi(),eventInfo->beamPosSigmaX(), eventInfo->beamPosSigmaY(), eventInfo->beamPosSigmaXY()) );
+  double sigma_z0 = std::sqrt( tp->definingParametersCovMatrixVec()[2] );
+
+
 
   // Take distance between z0 and zPV ( after referring the PV z coordinate to the beamspot position, given by vz() ), multiplied by sin(theta)
   // see https://twiki.cern.ch/twiki/bin/view/AtlasProtected/InDetTrackingDC14 for further reference
@@ -858,7 +878,7 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
 
   // z0*sin(theta) cut
   //
-  if ( !( fabs(z0sintheta) < m_z0sintheta_max ) ) {
+  if ( !((fabs(z0sintheta) < m_z0sintheta_max) && (fabs(z0sintheta) > m_z0sintheta_min))) {
       ANA_MSG_DEBUG( "Muon failed z0*sin(theta) cut.");
       return 0;
   }
@@ -871,7 +891,7 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
 
   // d0 cut
   //
-  if ( !( tp->d0() < m_d0_max ) ) {
+  if (!((fabs(tp->d0()) < m_d0_max) && (fabs(tp->d0()) > m_d0_min))) {
       ANA_MSG_DEBUG( "Muon failed d0 cut.");
       return 0;
   }
@@ -880,7 +900,7 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
 
   // d0sig cut
   //
-  if ( !( fabs(d0_significance) < m_d0sig_max ) ) {
+  if ( !(fabs(d0_significance) < m_d0sig_max) && (fabs(d0_significance) > m_d0sig_min) ) {
       ANA_MSG_DEBUG( "Muon failed d0 significance cut.");
       return 0;
   }
@@ -890,6 +910,16 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
   // decorate muon w/ d0sig info
   static SG::AuxElement::Decorator< float > d0SigDecor("d0sig");
   d0SigDecor( *muon ) = static_cast<float>(d0_significance);
+
+  //precision (error on d0/z0 cuts)
+  //
+  if (!(sigma_d0 < m_sigmad0_max && sigma_z0 < m_sigmaz0_max)){
+      ANA_MSG_DEBUG( "Muon failed sigmaz0/sigmad0 cuts.");
+      return 0;
+  if (!m_isUsedBefore && m_useCutFlow) m_mu_cutflowHist_1->Fill( m_mu_cutflow_precision_cut, 1 );
+  if ( m_isUsedBefore && m_useCutFlow ) { m_mu_cutflowHist_2->Fill( m_mu_cutflow_precision_cut, 1 ); }
+  
+  }
 
   if(m_doIsolation){
     // *********************************************************************************************************************************************************************
@@ -938,6 +968,7 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
 
   }
 
+  //Truth matching
   if (!m_truthMatch.empty() && eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION)){
     typedef ElementLink<xAOD::TruthParticleContainer> TruthLink;
     if (muon->isAvailable<TruthLink>("truthParticleLink")){
@@ -952,12 +983,34 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
         } else if (m_truthMatch == "true") return 0;
       } else if (m_truthMatch == "true") return 0;
     } else if (m_truthMatch == "true") return 0;
-  if (!m_isUsedBefore && m_useCutFlow) 
-      m_mu_cutflowHist_1->Fill( m_mu_cutflow_truthMatch_cut, 1 );
-  if ( m_isUsedBefore && m_useCutFlow ) 
-      m_mu_cutflowHist_2->Fill( m_mu_cutflow_truthMatch_cut, 1 );
+    if (!m_isUsedBefore && m_useCutFlow) 
+        m_mu_cutflowHist_1->Fill( m_mu_cutflow_truthMatch_cut, 1 );
+    if ( m_isUsedBefore && m_useCutFlow ) 
+        m_mu_cutflowHist_2->Fill( m_mu_cutflow_truthMatch_cut, 1 );
   }
   
+  //Truth type
+  if (!m_truthType.empty() && eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION)){
+    int truthType =  muon->auxdata<int>("truthType");
+    if(std::find(m_truthTypes.begin(), m_truthTypes.end(), truthType) == m_truthTypes.end()) {
+      return 0;
+    }
+  if (!m_isUsedBefore && m_useCutFlow) 
+      m_mu_cutflowHist_1->Fill( m_mu_cutflow_truthType_cut, 1 );
+  if ( m_isUsedBefore && m_useCutFlow ) 
+      m_mu_cutflowHist_2->Fill( m_mu_cutflow_truthType_cut, 1 );
+  }
+  //Truth type
+  if (!m_truthOrigin.empty() && eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION)){
+    int truthOrigin =  muon->auxdata<int>("truthOrigin");
+    if(std::find(m_truthOrigins.begin(), m_truthOrigins.end(), truthOrigin) == m_truthOrigins.end()) {
+      return 0;
+    }
+  if (!m_isUsedBefore && m_useCutFlow) 
+      m_mu_cutflowHist_1->Fill( m_mu_cutflow_truthOrigin_cut, 1 );
+  if ( m_isUsedBefore && m_useCutFlow ) 
+      m_mu_cutflowHist_2->Fill( m_mu_cutflow_truthOrigin_cut, 1 );
+  }
 
 
   ANA_MSG_DEBUG( "Leave passCuts... pass" );

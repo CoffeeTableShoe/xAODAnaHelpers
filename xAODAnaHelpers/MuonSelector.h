@@ -71,10 +71,20 @@ public:
   float          m_eta_max = 1e8;
   /** require d0 < m_d0_max */
   float          m_d0_max = 1e8;
+  /** require d0 > m_d0_max */
+  float          m_d0_min = 0;
   /** require d0 significance (at BL) < m_d0sig_max */
   float          m_d0sig_max = 1e8;
+  /** require d0 significance (at BL) > m_d0sig_min */
+  float          m_d0sig_min = -1;
   /** require z0*sin(theta) (at BL - corrected with vertex info) < m_z0sintheta_max */
   float	         m_z0sintheta_max = 1e8;
+  /** require z0*sin(theta) (at BL - corrected with vertex info) < m_z0sintheta_min */
+  float	         m_z0sintheta_min = -1;
+  /** require error on d0 < m_sigmad0_max */
+  float	         m_sigmad0_max = 1e8;
+  /** require error on z0 < m_sigmaz0_max */
+  float	         m_sigmaz0_max = 1e8;
 
   /** @brief Remove cosmic muons that fail absolute z0 and d0 selections */
   bool           m_removeCosmicMuon = false;
@@ -106,6 +116,10 @@ public:
   double         m_minDeltaR = 0.1;
   /// @brief No effect on data. m_truthMatch=true selects muons that have a truthLink to a true muon, m_truthMatch=fake selects muons that do not have a truthLink to a true muon. 
   std::string    m_truthMatch = "";
+  /// @brief No effect on data. Coma separated list of accepted ClassifierParticleType 
+  std::string    m_truthType = "";
+  /// @brief No effect on data. Coma separated list of accepted ClassifierParticleOrigin 
+  std::string    m_truthOrigin = "";
 
 private:
 
@@ -136,11 +150,16 @@ private:
   int   m_mu_cutflow_z0sintheta_cut;	    //!
   int   m_mu_cutflow_d0_cut;		    //!
   int   m_mu_cutflow_d0sig_cut;  	    //!
+  int   m_mu_cutflow_precision_cut;  	    //!
   int   m_mu_cutflow_iso_cut;		    //!
   int   m_mu_cutflow_truthMatch_cut;		//!
+  int   m_mu_cutflow_truthType_cut;		//!
+  int   m_mu_cutflow_truthOrigin_cut;		//!
   int   m_mu_cutflow_cosmic_cut;		    //!
 
   std::vector<std::string> m_IsoKeys;       //!
+  std::vector<int> m_truthTypes;       //!
+  std::vector<int> m_truthOrigins;       //!
 
   /* other private members */
 
