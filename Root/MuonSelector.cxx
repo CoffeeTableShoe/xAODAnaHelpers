@@ -991,7 +991,8 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
   
   //Truth type
   if (!m_truthType.empty() && eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION)){
-    int truthType =  muon->auxdata<int>("truthType");
+    int truthType = -1;
+    if (muon->isAvailable<int>("truthType")) truthType = muon->auxdata<int>("truthType");
     if(std::find(m_truthTypes.begin(), m_truthTypes.end(), truthType) == m_truthTypes.end()) {
       return 0;
     }
@@ -1002,7 +1003,8 @@ int MuonSelector :: passCuts( const xAOD::Muon* muon, const xAOD::Vertex *primar
   }
   //Truth type
   if (!m_truthOrigin.empty() && eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION)){
-    int truthOrigin =  muon->auxdata<int>("truthOrigin");
+    int truthOrigin = -1;
+    if (muon->isAvailable<int>("truthOrigin")) truthOrigin = muon->auxdata<int>("truthOrigin");
     if(std::find(m_truthOrigins.begin(), m_truthOrigins.end(), truthOrigin) == m_truthOrigins.end()) {
       return 0;
     }
