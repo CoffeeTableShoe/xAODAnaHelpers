@@ -63,6 +63,8 @@ public:
   /// @brief Write systematics names to metadata
   bool        m_writeSystToMetadata = false;
 
+  bool m_useRandomRunNumber = true;
+
   float       m_systVal = 0.0;
   std::string m_systName = "";
 
