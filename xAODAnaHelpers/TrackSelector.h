@@ -7,6 +7,7 @@
 // EDM include(s):
 #include "xAODTracking/VertexContainer.h"
 #include "xAODTracking/TrackParticleContainer.h"
+#include "xAODTruth/TruthParticleContainer.h"
 
 // external tools include(s):
 #include "InDetTrackSelectionTool/IInDetTrackSelectionTool.h"
@@ -115,6 +116,8 @@ public:
   float m_chi2Prob_min = 1e8;
   /// @brief require nIBL >= nBL_min (not recommended; for downward compatibility)
   int m_nBL_min = 1e8;
+  /// @brief require track originating from suep
+  bool m_suepSelection = false;
 
 
   std::string              m_passAuxDecorKeys = "";
@@ -134,6 +137,8 @@ private:
   int m_numObject;        //!
   int m_numEventPass;     //!
   int m_numObjectPass;    //!
+
+  std::vector<int> m_suep_barcodes;    //!
 
   // cutflow
   TH1D* m_cutflowHist = nullptr;          //!
@@ -158,6 +163,7 @@ public:
   virtual EL::StatusCode execute ();
   EL::StatusCode executeTrackCollection (float mcEvtWeight);
   EL::StatusCode executeTracksInJets ();
+  EL::StatusCode appendChildrenBarcodes (const xAOD::TruthParticle*,std::vector<int> &barcodes);
   virtual EL::StatusCode postExecute ();
   virtual EL::StatusCode finalize ();
   virtual EL::StatusCode histFinalize ();

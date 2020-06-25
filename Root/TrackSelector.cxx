@@ -174,6 +174,20 @@ EL::StatusCode TrackSelector :: initialize ()
 }
 
 
+EL::StatusCode TrackSelector :: appendChildrenBarcodes(const xAOD::TruthParticle* p, std::vector<int> &barcodes){
+  uint nChildren = p->nChildren();
+  for (uint i=0; i<nChildren; i++){
+    const xAOD::TruthParticle* child = p->child(i);
+    if(child){
+      if (p->isAvailable<int>("barcode")) { 
+        barcodes.push_back(child->auxdata<int>("barcode")); }
+      if (child->nChildren()){
+        appendChildrenBarcodes(child,barcodes);
+      }
+    }
+  }
+  return EL::StatusCode::SUCCESS;
+}
 
 EL::StatusCode TrackSelector :: execute ()
 {
@@ -182,6 +196,22 @@ EL::StatusCode TrackSelector :: execute ()
 
   const xAOD::EventInfo* eventInfo(nullptr);
   ANA_CHECK( HelperFunctions::retrieve(eventInfo, m_eventInfoContainerName, m_event, m_store, msg()) );
+
+
+  //For suep track selection
+  m_suep_barcodes.clear();
+  if (m_suepSelection == true){
+    const xAOD::TruthParticleContainer* truthParticles;
+    if ( eventInfo->eventType(xAOD::EventInfo::IS_SIMULATION) ){
+      ANA_CHECK( HelperFunctions::retrieve(truthParticles, "TruthParticles", m_event, m_store, msg()) );
+      for (const xAOD::TruthParticle *truthParticle : *truthParticles) {
+        int pdg = truthParticle->pdgId();
+        if (std::abs(pdg) == 25 && truthParticle->nChildren() > 2){
+          TrackSelector :: appendChildrenBarcodes(truthParticle,m_suep_barcodes);
+        }
+      }
+    }
+  }
 
   // MC event weight
   //
@@ -395,8 +425,24 @@ EL::StatusCode TrackSelector :: histFinalize ()
 
 int TrackSelector :: PassCuts( const xAOD::TrackParticle* trk, const xAOD::Vertex *pvx ) {
 
+
   // InDetTrackSelectionTool
   if ( !m_trkSelTool_handle->accept(*trk, pvx) ) { return 0; }
+
+  //suep selection
+  if (m_suepSelection == true){
+    typedef ElementLink<xAOD::TruthParticleContainer> TruthLink;
+    if (trk->isAvailable<TruthLink>("truthParticleLink")){
+      const TruthLink link = trk->auxdata<TruthLink>("truthParticleLink");
+      const xAOD::TruthParticle* tp(nullptr);
+      if (link.isValid()){
+        tp = *link;
+        if (tp->isAvailable<int>("barcode")) {
+          if (!(std::find(m_suep_barcodes.begin(), m_suep_barcodes.end(), tp->auxdata<int>("barcode")) != m_suep_barcodes.end())) {return 0;}
+        } else {return 0;}
+      } else {return 0;}
+    } else {return 0;}
+  }
 
   // Cuts not available with the InDetTrackSelectionTool
   //
